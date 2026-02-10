@@ -1,0 +1,336 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Redis Viewer</title>
+    <style>
+        body { font-family: Arial; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #1e88e5; color: white; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+        .countdown { font-size: 14px; color: #666; margin-left: 10px; }
+        .status-online { color: green; font-weight: bold; }
+        .row-offline { background-color: #ffcccc !important; }
+        .control-btn {
+            padding: 8px 16px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+            margin-left: 10px;
+            font-weight: bold;
+        }
+        .btn-stop {
+            background-color: #f44336;
+            color: white;
+        }
+        .btn-start {
+            background-color: #4CAF50;
+            color: white;
+        }
+        .btn-stop:hover {
+            background-color: #da190b;
+        }
+        .btn-start:hover {
+            background-color: #45a049;
+        }
+        .btn-refresh-ip {
+            padding: 4px 12px;
+            font-size: 12px;
+            cursor: pointer;
+            border: none;
+            border-radius: 3px;
+            background-color: #2196F3;
+            color: white;
+        }
+        .btn-refresh-ip:hover:not(:disabled) {
+            background-color: #0b7dda;
+        }
+        .btn-refresh-ip:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+
+        /* 浮动日志窗口样式 */
+        .log-window {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 400px;
+            max-height: 300px;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            z-index: 1000;
+            border: 1px solid #dee2e6;
+        }
+        .log-header {
+            background-color: #e9ecef;
+            color: #495057;
+            padding: 10px 15px;
+            border-radius: 8px 8px 0 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .log-toggle {
+            background: none;
+            border: none;
+            color: #495057;
+            cursor: pointer;
+            font-size: 18px;
+            padding: 0;
+            width: 24px;
+            height: 24px;
+        }
+        .log-content {
+            padding: 10px;
+            max-height: 250px;
+            overflow-y: auto;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            color: #212529;
+            background-color: white;
+        }
+        .log-content.collapsed {
+            display: none;
+        }
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 5px;
+            border-left: 3px solid #17a2b8;
+            background-color: rgba(23, 162, 184, 0.05);
+        }
+        .log-entry.success {
+            border-left-color: #28a745;
+            background-color: rgba(40, 167, 69, 0.05);
+        }
+        .log-entry.error {
+            border-left-color: #dc3545;
+            background-color: rgba(220, 53, 69, 0.05);
+        }
+        .log-time {
+            color: #6c757d;
+            font-size: 11px;
+        }
+        .log-message {
+            margin-top: 3px;
+        }
+        .log-clear {
+            background-color: #e74c3c;
+            color: white;
+            border: none;
+            padding: 4px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 11px;
+            margin-left: 10px;
+        }
+        .log-clear:hover {
+            background-color: #c0392b;
+        }
+    </style>
+    <script>
+        let countdown = 15;
+        let refreshInterval;
+        let countdownInterval;
+        let isRefreshing = true;
+        let logCollapsed = false;
+
+        // 添加日志函数
+        function addLog(message, type = 'info') {
+            const logContent = document.getElementById('log-content');
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry ${type}`;
+
+            const now = new Date();
+            const timeStr = now.toLocaleTimeString('zh-CN', { hour12: false });
+
+            logEntry.innerHTML = `
+                <div class="log-time">${timeStr}</div>
+                <div class="log-message">${message}</div>
+            `;
+
+            logContent.insertBefore(logEntry, logContent.firstChild);
+
+            // 限制日志条数，最多保留50条
+            while (logContent.children.length > 50) {
+                logContent.removeChild(logContent.lastChild);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log-content').innerHTML = '';
+            addLog('日志已清空', 'info');
+        }
+
+        function toggleLog() {
+            const logContent = document.getElementById('log-content');
+            const toggleBtn = document.getElementById('log-toggle');
+            logCollapsed = !logCollapsed;
+
+            if (logCollapsed) {
+                logContent.classList.add('collapsed');
+                toggleBtn.textContent = '▲';
+            } else {
+                logContent.classList.remove('collapsed');
+                toggleBtn.textContent = '▼';
+            }
+        }
+
+        function refreshTable() {
+            addLog('正在刷新设备数据...', 'info');
+            fetch('/api/data')
+                .then(response => response.json())
+                .then(data => {
+                    let tbody = document.getElementById('table-body');
+                    tbody.innerHTML = '';
+                    data.forEach((item, index) => {
+                        let row = tbody.insertRow();
+
+                        // 如果离线，整行变红色
+                        if (item.status_color === 'red') {
+                            row.className = 'row-offline';
+                        } else if (index % 2 === 0) {
+                            row.style.backgroundColor = '#f2f2f2';
+                        }
+
+                        let statusClass = item.status_color === 'green' ? 'status-online' : '';
+                        let buttonDisabled = item.status_color === 'red' ? 'disabled' : '';
+
+                        row.innerHTML = `
+                            <td>${item.device_id}</td>
+                            <td>${item.local_ip}</td>
+                            <td>${item.timestamp}</td>
+                            <td>${item.public_ip}</td>
+                            <td>${item.get_time}</td>
+                            <td class="${statusClass}">${item.status}</td>
+                            <td>
+                                <button class="btn-refresh-ip" ${buttonDisabled} onclick="refreshIp('${item.device_id}')">刷新ip</button>
+                            </td>
+                        `;
+                    });
+                    countdown = 15; // 重置倒计时
+                    addLog(`设备数据刷新成功，共 ${data.length} 台设备`, 'success');
+                })
+                .catch(error => {
+                    addLog(`设备数据刷新失败: ${error}`, 'error');
+                });
+        }
+
+        function refreshIp(deviceId) {
+            addLog(`正在向设备 ${deviceId} 发送刷新IP命令...`, 'info');
+
+            // 发送请求到后端
+            fetch('/api/refresh_ip', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ device_id: deviceId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`✓ ${data.message}`, 'success');
+                } else {
+                    addLog(`✗ ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog(`✗ 请求失败: ${error}`, 'error');
+            });
+        }
+
+        function updateCountdown() {
+            if (isRefreshing) {
+                document.getElementById('countdown').textContent = countdown + '秒后刷新';
+                countdown--;
+                if (countdown < 0) {
+                    countdown = 15;
+                }
+            } else {
+                document.getElementById('countdown').textContent = '已暂停';
+            }
+        }
+
+        function toggleRefresh() {
+            isRefreshing = !isRefreshing;
+            let btn = document.getElementById('toggleBtn');
+
+            if (isRefreshing) {
+                // 开始刷新
+                btn.textContent = '停止刷新';
+                btn.className = 'control-btn btn-stop';
+                countdown = 15;
+                addLog('自动刷新已启动', 'info');
+                refreshTable(); // 立即刷新一次
+                refreshInterval = setInterval(refreshTable, 15000);
+            } else {
+                // 停止刷新
+                btn.textContent = '开始刷新';
+                btn.className = 'control-btn btn-start';
+                clearInterval(refreshInterval);
+                addLog('自动刷新已暂停', 'info');
+            }
+        }
+
+        // 页面加载时启动
+        window.onload = function() {
+            addLog('系统启动，开始监控设备数据', 'success');
+            countdownInterval = setInterval(updateCountdown, 1000);
+            refreshInterval = setInterval(refreshTable, 15000);
+        }
+    </script>
+</head>
+<body>
+    <h1>
+        IOT设备数据
+        <span class="countdown" id="countdown">15秒后刷新</span>
+        <button id="toggleBtn" class="control-btn btn-stop" onclick="toggleRefresh()">停止刷新</button>
+    </h1>
+    <table>
+        <tr>
+            <th>设备ID</th>
+            <th>本地IP</th>
+            <th>时间戳</th>
+            <th>公网IP</th>
+            <th>获取时间</th>
+            <th>状态</th>
+            <th>操作</th>
+        </tr>
+        <tbody id="table-body">
+        {% for item in data %}
+        <tr {% if item.status_color == 'red' %}class="row-offline"{% endif %}>
+            <td>{{ item.device_id }}</td>
+            <td>{{ item.local_ip }}</td>
+            <td>{{ item.timestamp }}</td>
+            <td>{{ item.public_ip }}</td>
+            <td>{{ item.get_time }}</td>
+            <td class="{% if item.status_color == 'green' %}status-online{% endif %}">{{ item.status }}</td>
+            <td>
+                <button class="btn-refresh-ip" {% if item.status_color == 'red' %}disabled{% endif %} onclick="refreshIp('{{ item.device_id }}')">刷新ip</button>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- 浮动日志窗口 -->
+    <div class="log-window">
+        <div class="log-header">
+            <span>操作日志</span>
+            <div>
+                <button class="log-clear" onclick="clearLog()">清空</button>
+                <button class="log-toggle" id="log-toggle" onclick="toggleLog()">▼</button>
+            </div>
+        </div>
+        <div class="log-content" id="log-content">
+        </div>
+    </div>
+</body>
+</html>
