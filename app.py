@@ -3,12 +3,18 @@ import redis
 import json
 from datetime import datetime
 import time
-from mqtt_client import MQTTClient
+from core.mqtt_client import MQTTClient
+from core.Config import Config
 
 app = Flask(__name__)
 
+config = Config('config.conf')
+
 # 初始化MQTT客户端
-mqtt_client = MQTTClient(broker_host='localhost', broker_port=1883)
+mqtt_client = MQTTClient(broker_host=config.get_broker_host(),
+                         broker_port=config.get_broker_port(),
+                         username=config.get_broker_username(),
+                         password=config.get_broker_password())
 mqtt_client.connect()
 
 

@@ -4,7 +4,7 @@ import threading
 
 
 class MQTTClient:
-    def __init__(self, broker_host='localhost', broker_port=1883):
+    def __init__(self, broker_host='localhost', broker_port=1883, username=None, password=None):
         """
         初始化MQTT客户端
         :param broker_host: MQTT broker地址
@@ -13,6 +13,8 @@ class MQTTClient:
         self.broker_host = broker_host
         self.broker_port = broker_port
         self.client = mqtt.Client()
+        if username and password and username != '' and password != '':
+            self.client.username_pw_set(username, password)
         self.connected = False
 
         # 设置回调函数
