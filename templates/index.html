@@ -202,6 +202,10 @@
                         let statusClass = item.status_color === 'green' ? 'status-online' : '';
                         let buttonDisabled = item.status_color === 'red' ? 'disabled' : '';
 
+                        let frpStatusClass = item.frp_status_data ? 'status-online' : '';
+                        let frp_btn_text = item.frp_status_data ? 'frp停止' : 'frp开启'
+                        let frpBtnDisabled = 'green'
+
                         row.innerHTML = `
                             <td>${item.device_id}</td>
                             <td>${item.local_ip}</td>
@@ -209,8 +213,10 @@
                             <td>${item.public_ip}</td>
                             <td>${item.get_time}</td>
                             <td class="${statusClass}">${item.status}</td>
+                            <td class="${frpStatusClass}">${item.frp_status}</td>
                             <td>
                                 <button class="btn-refresh-ip" ${buttonDisabled} onclick="refreshIp('${item.device_id}')">刷新ip</button>
+                                <button class="btn-refresh-ip" ${buttonDisabled} onclick="toggleFrp('${item.device_id}', ${!item.frp_status_data})">${frp_btn_text}</button>
                             </td>
                         `;
                     });
@@ -220,6 +226,31 @@
                 .catch(error => {
                     addLog(`设备数据刷新失败: ${error}`, 'error');
                 });
+        }
+
+        function toggleFrp(deviceId, op) {
+            let optext = op === true ? "frp开启":"frp停止"
+            addLog(`正在向设备 ${deviceId} 发送刷新${optext}命令...`, 'info');
+
+            // 发送请求到后端
+            fetch('/api/frp_ctl', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ device_id: deviceId, operation:  op})
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    addLog(`✓ ${data.message}`, 'success');
+                } else {
+                    addLog(`✗ ${data.message}`, 'error');
+                }
+            })
+            .catch(error => {
+                addLog(`✗ 请求失败: ${error}`, 'error');
+            });
         }
 
         function refreshIp(deviceId) {
@@ -301,6 +332,7 @@
             <th>公网IP</th>
             <th>获取时间</th>
             <th>状态</th>
+            <th>frp服务</th>
             <th>操作</th>
         </tr>
         <tbody id="table-body">
@@ -312,8 +344,10 @@
             <td>{{ item.public_ip }}</td>
             <td>{{ item.get_time }}</td>
             <td class="{% if item.status_color == 'green' %}status-online{% endif %}">{{ item.status }}</td>
+            <td class="{% if item.frp_status_color == 'green' %}status-online{% endif %}">{{ item.frp_status }}</td>
             <td>
                 <button class="btn-refresh-ip" {% if item.status_color == 'red' %}disabled{% endif %} onclick="refreshIp('{{ item.device_id }}')">刷新ip</button>
+                <button class="btn-refresh-ip" {% if item.status_color == 'red' %}disabled{% endif %} onclick="toggleFrp('{{ item.device_id }}', {% if item.frp_status_data %}false{% else %} true{% endif %})">{% if item.frp_status_data %}frp停止{% else %} frp开启{% endif %}</button>
             </td>
         </tr>
         {% endfor %}

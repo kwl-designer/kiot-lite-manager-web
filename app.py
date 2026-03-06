@@ -53,6 +53,15 @@ def get_redis_data():
                 status = "在线"
                 status_color = "green"
 
+            # frp状态
+            frp_status = "停止"
+            frp_status_color = "red"
+            frp_status_data = value_dict.get("frp_active", False)
+            if frp_status_data == True:
+                frp_status = "运行"
+                frp_status_color = "green"
+                
+            
             data.append({
                 'device_id': device_id,
                 'local_ip': value_dict.get('local_ip', ''),
@@ -61,7 +70,10 @@ def get_redis_data():
                 'get_time': datetime.fromtimestamp(value_dict.get('public_ip', {}).get('get_time', 0)).strftime(
                     '%Y-%m-%d %H:%M:%S'),
                 'status': status,
-                'status_color': status_color
+                'status_color': status_color,
+                'frp_status': frp_status,
+                'frp_status_color': frp_status_color,
+                'frp_status_data': frp_status_data
             })
         except:
             pass
@@ -94,6 +106,21 @@ def refresh_ip():
     else:
         return jsonify({'success': False, 'message': 'MQTT命令发送失败'})
 
+@app.route('/api/frp_ctl', methods=['POST'])
+def frp_ctl():
+    """接收刷新IP请求并发送MQTT命令"""
+    device_id = request.json.get('device_id')
+    if not device_id:
+        return jsonify({'success': False, 'message': '设备ID不能为空'})
+    
+    # 操作禁用或者启用
+    operation = request.json.get('operation')
+    success = mqtt_client.send_op_frp(device_id, operation)
+
+    if success:
+        return jsonify({'success': True, 'message': f'已向设备 {device_id} 发送Frp命令'})
+    else:
+        return jsonify({'success': False, 'message': 'MQTT命令发送失败'})
 
 if __name__ == '__main__':
     app.run(debug=True, port=6000)

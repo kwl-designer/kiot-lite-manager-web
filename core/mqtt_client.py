@@ -50,6 +50,20 @@ class MQTTClient:
         self.client.loop_stop()
         self.client.disconnect()
 
+    def send_op_frp(self, device_id, operation):
+        """
+        向指定设备发送frp命令
+        :param device_id: 设备ID，如 "A11"
+        :param operation: true/false
+        """
+        topic = f"device/{device_id}/cmd"
+        payload = None
+        if operation == True:
+            payload = json.dumps({"cmd": "frp on"})
+        else:
+            payload = json.dumps({"cmd": "frp off"})
+        
+        return self.send_data_device(topic, payload)
     def send_refresh_ip_cmd(self, device_id):
         """
         向指定设备发送刷新IP命令
@@ -58,6 +72,9 @@ class MQTTClient:
         topic = f"device/{device_id}/cmd"
         payload = json.dumps({"cmd": "refresh ip"})
 
+        return self.send_data_device(topic, payload)
+        
+    def send_data_device(self, topic, payload):
         try:
             result = self.client.publish(topic, payload, qos=1)
             if result.rc == mqtt.MQTT_ERR_SUCCESS:
