@@ -1,137 +1,378 @@
 <!DOCTYPE html>
 <html>
+
 <head>
     <title>Redis Viewer</title>
     <style>
-        body { font-family: Arial; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
-        th { background-color: #1e88e5; color: white; }
-        tr:nth-child(even) { background-color: #f2f2f2; }
-        .countdown { font-size: 14px; color: #666; margin-left: 10px; }
-        .status-online { color: green; font-weight: bold; }
-        .row-offline { background-color: #ffcccc !important; }
-        .control-btn {
-            padding: 8px 16px;
-            font-size: 14px;
-            cursor: pointer;
-            border: none;
-            border-radius: 4px;
-            margin-left: 10px;
-            font-weight: bold;
-        }
-        .btn-stop {
-            background-color: #f44336;
-            color: white;
-        }
-        .btn-start {
-            background-color: #4CAF50;
-            color: white;
-        }
-        .btn-stop:hover {
-            background-color: #da190b;
-        }
-        .btn-start:hover {
-            background-color: #45a049;
-        }
-        .btn-refresh-ip {
-            padding: 4px 12px;
-            font-size: 12px;
-            cursor: pointer;
-            border: none;
-            border-radius: 3px;
-            background-color: #2196F3;
-            color: white;
-        }
-        .btn-refresh-ip:hover:not(:disabled) {
-            background-color: #0b7dda;
-        }
-        .btn-refresh-ip:disabled {
-            background-color: #cccccc;
-            cursor: not-allowed;
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
 
-        /* 浮动日志窗口样式 */
-        .log-window {
-            position: fixed;
-            bottom: 20px;
-            right: 20px;
-            width: 400px;
-            max-height: 300px;
-            background-color: #f8f9fa;
-            border-radius: 8px;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            display: flex;
-            flex-direction: column;
-            z-index: 1000;
-            border: 1px solid #dee2e6;
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: #f8f9fa;
+            min-height: 100vh;
+            color: #333;
         }
-        .log-header {
-            background-color: #e9ecef;
-            color: #495057;
-            padding: 10px 15px;
-            border-radius: 8px 8px 0 0;
+
+        /* 顶部导航栏 */
+        .header {
+            background: #ffffff;
+            border-bottom: 1px solid #e0e0e0;
+            padding: 15px 40px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            font-weight: bold;
-            border-bottom: 1px solid #dee2e6;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
         }
-        .log-toggle {
-            background: none;
-            border: none;
-            color: #495057;
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 30px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .page-title {
+            font-size: 16px;
+            color: #666;
+            padding-left: 30px;
+            border-left: 2px solid #e0e0e0;
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .refresh-info {
+            color: #888;
+            font-size: 14px;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            font-weight: 500;
             cursor: pointer;
+            transition: all 0.3s;
+            text-decoration: none;
+            border: none;
+            display: inline-block;
+        }
+
+        .btn-black {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .btn-black:hover {
+            background: #000000;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .btn-outline {
+            background: transparent;
+            color: #1a1a1a;
+            border: 1px solid #1a1a1a;
+        }
+
+        .btn-outline:hover {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            font-size: 13px;
+        }
+
+        /* 主要内容区 */
+        .container {
+            max-width: 1400px;
+            margin: 30px auto;
+            padding: 0 40px;
+        }
+
+        .card {
+            background: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            overflow: hidden;
+        }
+
+        .card-header {
+            padding: 20px 30px;
+            border-bottom: 1px solid #e0e0e0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .card-title {
             font-size: 18px;
-            padding: 0;
-            width: 24px;
-            height: 24px;
+            font-weight: 600;
+            color: #1a1a1a;
         }
-        .log-content {
-            padding: 10px;
-            max-height: 250px;
-            overflow-y: auto;
-            font-family: 'Courier New', monospace;
+
+        /* 表格样式 */
+        .table-container {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+
+        thead {
+            background: #fafafa;
+        }
+
+        th {
+            padding: 14px 16px;
+            text-align: left;
+            font-weight: 600;
+            color: #333;
+            border-bottom: 2px solid #e0e0e0;
+            white-space: nowrap;
+        }
+
+        td {
+            padding: 14px 16px;
+            border-bottom: 1px solid #f0f0f0;
+            color: #555;
+        }
+
+        tbody tr:hover {
+            background: #fafafa;
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        /* 状态标签 */
+        .status-badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 12px;
             font-size: 12px;
-            color: #212529;
-            background-color: white;
+            font-weight: 500;
         }
-        .log-content.collapsed {
-            display: none;
+
+        .status-active {
+            background: #d4edda;
+            color: #155724;
         }
-        .log-entry {
-            margin-bottom: 8px;
-            padding: 5px;
-            border-left: 3px solid #17a2b8;
-            background-color: rgba(23, 162, 184, 0.05);
+
+        .status-inactive {
+            background: #f8d7da;
+            color: #721c24;
         }
-        .log-entry.success {
-            border-left-color: #28a745;
-            background-color: rgba(40, 167, 69, 0.05);
-        }
-        .log-entry.error {
-            border-left-color: #dc3545;
-            background-color: rgba(220, 53, 69, 0.05);
-        }
-        .log-time {
-            color: #6c757d;
-            font-size: 11px;
-        }
-        .log-message {
-            margin-top: 3px;
-        }
-        .log-clear {
-            background-color: #e74c3c;
-            color: white;
-            border: none;
-            padding: 4px 10px;
-            border-radius: 3px;
+
+        /* 操作按钮样式 */
+        .action-btn {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
             cursor: pointer;
-            font-size: 11px;
-            margin-left: 10px;
+            transition: all 0.3s;
+            border: none;
+            display: inline-block;
+            margin-right: 8px;
         }
-        .log-clear:hover {
-            background-color: #c0392b;
+
+        .action-btn-outline {
+            background: transparent;
+            color: #1a1a1a;
+            border: 1px solid #1a1a1a;
+        }
+
+        .action-btn-outline:hover {
+            background: #1a1a1a;
+            color: #ffffff;
+        }
+
+        /* 禁用状态按钮 */
+        .action-btn-disabled {
+            background: #f0f0f0;
+            color: #999;
+            border: 1px solid #e0e0e0;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .action-btn-disabled:hover {
+            background: #f0f0f0;
+            color: #999;
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* FRP 状态切换按钮 */
+        .frp-toggle {
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s;
+            border: none;
+            display: inline-block;
+        }
+
+        .frp-on {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .frp-on:hover {
+            background: #c3e6cb;
+        }
+
+        .frp-off {
+            background: #f8d7da;
+            color: #721c24;
+        }
+
+        .frp-off:hover {
+            background: #f5c6cb;
+        }
+
+        .frp-disabled {
+            background: #f0f0f0;
+            color: #999;
+            cursor: not-allowed;
+            opacity: 0.6;
+        }
+
+        .frp-disabled:hover {
+            background: #f0f0f0;
+            color: #999;
+        }
+
+        /* 操作日志区域 */
+        .log-section {
+            margin-top: 30px;
+        }
+
+        .log-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .log-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1a1a1a;
+        }
+
+        .log-content {
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+            min-height: 150px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            color: #666;
+            line-height: 1.6;
+        }
+
+        /* 响应式设计 */
+        @media (max-width: 768px) {
+            .header {
+                padding: 15px 20px;
+                flex-direction: column;
+                gap: 15px;
+            }
+
+            .header-left {
+                flex-direction: column;
+                gap: 10px;
+            }
+
+            .page-title {
+                border-left: none;
+                padding-left: 0;
+                border-top: 2px solid #e0e0e0;
+                padding-top: 10px;
+            }
+
+            .container {
+                padding: 0 20px;
+            }
+
+            .card-header {
+                padding: 15px 20px;
+            }
+
+            th,
+            td {
+                padding: 10px 12px;
+            }
+        }
+
+        /* 空状态 */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        /* Tooltip 提示 */
+        .tooltip {
+            position: relative;
+            display: inline-block;
+        }
+
+        .tooltip .tooltip-text {
+            visibility: hidden;
+            background: #1a1a1a;
+            color: #fff;
+            text-align: center;
+            border-radius: 6px;
+            padding: 6px 12px;
+            position: absolute;
+            z-index: 1;
+            bottom: 125%;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 12px;
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .tooltip:hover .tooltip-text {
+            visibility: visible;
+            opacity: 1;
+        }
+
+        /* 加载状态 */
+        .loading {
+            opacity: 0.6;
+            pointer-events: none;
         }
     </style>
     <script>
@@ -168,20 +409,6 @@
             addLog('日志已清空', 'info');
         }
 
-        function toggleLog() {
-            const logContent = document.getElementById('log-content');
-            const toggleBtn = document.getElementById('log-toggle');
-            logCollapsed = !logCollapsed;
-
-            if (logCollapsed) {
-                logContent.classList.add('collapsed');
-                toggleBtn.textContent = '▲';
-            } else {
-                logContent.classList.remove('collapsed');
-                toggleBtn.textContent = '▼';
-            }
-        }
-
         function refreshTable() {
             addLog('正在刷新设备数据...', 'info');
             fetch('/api/data')
@@ -192,19 +419,46 @@
                     data.forEach((item, index) => {
                         let row = tbody.insertRow();
 
-                        // 如果离线，整行变红色
-                        if (item.status_color === 'red') {
-                            row.className = 'row-offline';
-                        } else if (index % 2 === 0) {
+                        // 如果离线，
+                        if (!item.status_boolean) {
                             row.style.backgroundColor = '#f2f2f2';
+                        } 
+
+                        let statusClass = item.status_boolean ? 'status-active' : 'status-inactive';
+                        let buttonDisabled = !item.status_boolean ? 'disabled' : '';
+
+                        let frpStatusClass = item.frp_status_data ? 'status-active' : 'status-inactive';
+                        let frp_btn_text = item.frp_status_data ? 'FRP 停止' : 'FRP 开启';
+                        let frp_btn_class = item.frp_status_data ? 'frp-off' : 'frp-on';
+                        let frpBtnDisabled = 'green';
+
+                        let btns = '';
+                        if(item.status_boolean) {
+                            btns = `
+                                    <button class="action-btn action-btn-outline" 
+                                            onclick="refreshIp('${item.device_id}')">
+                                        刷新 IP
+                                    </button>
+                                    <button class="frp-toggle ${frp_btn_class}"
+                                            onclick="toggleFrp('${item.device_id}', ${!item.frp_status_data})">
+                                        ${frp_btn_text}
+                                    </button>
+                            `;
                         }
-
-                        let statusClass = item.status_color === 'green' ? 'status-online' : '';
-                        let buttonDisabled = item.status_color === 'red' ? 'disabled' : '';
-
-                        let frpStatusClass = item.frp_status_data ? 'status-online' : '';
-                        let frp_btn_text = item.frp_status_data ? 'frp停止' : 'frp开启'
-                        let frpBtnDisabled = 'green'
+                        else {
+                            btns = `
+                                    <span class="tooltip">
+                                        <button class="action-btn action-btn-disabled" disabled>刷新 IP</button>
+                                        <span class="tooltip-text">设备离线，无法操作</span>
+                                    </span>
+                                    <span class="tooltip">
+                                        <button class="frp-toggle frp-disabled" disabled>
+                                            ${frp_btn_text}
+                                        </button>
+                                        <span class="tooltip-text">设备离线，无法操作</span>
+                                    </span>
+                            `
+                        };
 
                         row.innerHTML = `
                             <td>${item.device_id}</td>
@@ -212,11 +466,18 @@
                             <td>${item.timestamp}</td>
                             <td>${item.public_ip}</td>
                             <td>${item.get_time}</td>
-                            <td class="${statusClass}">${item.status}</td>
-                            <td class="${frpStatusClass}">${item.frp_status}</td>
                             <td>
-                                <button class="btn-refresh-ip" ${buttonDisabled} onclick="refreshIp('${item.device_id}')">刷新ip</button>
-                                <button class="btn-refresh-ip" ${buttonDisabled} onclick="toggleFrp('${item.device_id}', ${!item.frp_status_data})">${frp_btn_text}</button>
+                                <span class="status-badge ${statusClass}">
+                                    ${item.status}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge ${frpStatusClass}">
+                                    ${item.frp_status}
+                                </span>
+                            </td>
+                            <td>
+                                ${btns}
                             </td>
                         `;
                     });
@@ -229,7 +490,7 @@
         }
 
         function toggleFrp(deviceId, op) {
-            let optext = op === true ? "frp开启":"frp停止"
+            let optext = op === true ? "frp开启" : "frp停止"
             addLog(`正在向设备 ${deviceId} 发送刷新${optext}命令...`, 'info');
 
             // 发送请求到后端
@@ -238,19 +499,19 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ device_id: deviceId, operation:  op})
+                body: JSON.stringify({ device_id: deviceId, operation: op })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    addLog(`✓ ${data.message}`, 'success');
-                } else {
-                    addLog(`✗ ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                addLog(`✗ 请求失败: ${error}`, 'error');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addLog(`${data.message}`, 'success');
+                    } else {
+                        addLog(`${data.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog(`请求失败: ${error}`, 'error');
+                });
         }
 
         function refreshIp(deviceId) {
@@ -264,17 +525,17 @@
                 },
                 body: JSON.stringify({ device_id: deviceId })
             })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    addLog(`✓ ${data.message}`, 'success');
-                } else {
-                    addLog(`✗ ${data.message}`, 'error');
-                }
-            })
-            .catch(error => {
-                addLog(`✗ 请求失败: ${error}`, 'error');
-            });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        addLog(`${data.message}`, 'success');
+                    } else {
+                        addLog(`${data.message}`, 'error');
+                    }
+                })
+                .catch(error => {
+                    addLog(`请求失败: ${error}`, 'error');
+                });
         }
 
         function updateCountdown() {
@@ -296,7 +557,7 @@
             if (isRefreshing) {
                 // 开始刷新
                 btn.textContent = '停止刷新';
-                btn.className = 'control-btn btn-stop';
+                btn.className = 'btn btn-outline btn-small';
                 countdown = 15;
                 addLog('自动刷新已启动', 'info');
                 refreshTable(); // 立即刷新一次
@@ -304,67 +565,128 @@
             } else {
                 // 停止刷新
                 btn.textContent = '开始刷新';
-                btn.className = 'control-btn btn-start';
+                btn.className = 'btn btn-black btn-small';
                 clearInterval(refreshInterval);
                 addLog('自动刷新已暂停', 'info');
             }
         }
 
         // 页面加载时启动
-        window.onload = function() {
+        window.onload = function () {
             addLog('系统启动，开始监控设备数据', 'success');
             countdownInterval = setInterval(updateCountdown, 1000);
             refreshInterval = setInterval(refreshTable, 15000);
         }
     </script>
 </head>
-<body>
-    <h1>
-        IOT设备数据
-        <span class="countdown" id="countdown">15秒后刷新</span>
-        <button id="toggleBtn" class="control-btn btn-stop" onclick="toggleRefresh()">停止刷新</button>
-    </h1>
-    <table>
-        <tr>
-            <th>设备ID</th>
-            <th>本地IP</th>
-            <th>时间戳</th>
-            <th>公网IP</th>
-            <th>获取时间</th>
-            <th>状态</th>
-            <th>frp服务</th>
-            <th>操作</th>
-        </tr>
-        <tbody id="table-body">
-        {% for item in data %}
-        <tr {% if item.status_color == 'red' %}class="row-offline"{% endif %}>
-            <td>{{ item.device_id }}</td>
-            <td>{{ item.local_ip }}</td>
-            <td>{{ item.timestamp }}</td>
-            <td>{{ item.public_ip }}</td>
-            <td>{{ item.get_time }}</td>
-            <td class="{% if item.status_color == 'green' %}status-online{% endif %}">{{ item.status }}</td>
-            <td class="{% if item.frp_status_color == 'green' %}status-online{% endif %}">{{ item.frp_status }}</td>
-            <td>
-                <button class="btn-refresh-ip" {% if item.status_color == 'red' %}disabled{% endif %} onclick="refreshIp('{{ item.device_id }}')">刷新ip</button>
-                <button class="btn-refresh-ip" {% if item.status_color == 'red' %}disabled{% endif %} onclick="toggleFrp('{{ item.device_id }}', {% if item.frp_status_data %}false{% else %} true{% endif %})">{% if item.frp_status_data %}frp停止{% else %} frp开启{% endif %}</button>
-            </td>
-        </tr>
-        {% endfor %}
-        </tbody>
-    </table>
 
-    <!-- 浮动日志窗口 -->
-    <div class="log-window">
-        <div class="log-header">
-            <span>操作日志</span>
-            <div>
-                <button class="log-clear" onclick="clearLog()">清空</button>
-                <button class="log-toggle" id="log-toggle" onclick="toggleLog()">▼</button>
+<body>
+    <!-- 顶部导航栏 -->
+    <div class="header">
+        <div class="header-left">
+            <div class="logo">IOT 设备系统</div>
+            <div class="page-title">IOT 设备数据</div>
+        </div>
+        <div class="header-right">
+            <div class="refresh-info">
+                <span class="countdown" id="countdown">15秒后刷新</span>
+            </div>
+            <button id="toggleBtn" class="btn btn-outline btn-small" onclick="toggleRefresh()">停止刷新</button>
+            <a href="{{ url_for('logout') }}" class="btn btn-black btn-small">退出登录</a>
+        </div>
+    </div>
+
+    <!-- 主要内容区 -->
+    <div class="container">
+        <!-- 设备数据表格 -->
+        <div class="card">
+            <div class="card-header">
+                <div class="card-title">设备列表</div>
+                <button class="btn btn-black btn-small" onclick="refreshTable()">刷新数据</button>
+            </div>
+            <div class="table-container">
+                <table>
+                    <tr>
+                        <th>设备ID</th>
+                        <th>本地IP</th>
+                        <th>时间戳</th>
+                        <th>公网IP</th>
+                        <th>获取时间</th>
+                        <th>状态</th>
+                        <th>frp服务</th>
+                        <th>操作</th>
+                    </tr>
+                    <tbody id="table-body">
+                        {% for item in data %}
+                        <tr {% if item.status_boolean == False %}style="background-color: rgb(242, 242, 242);" {% endif %}>
+                            <td>{{ item.device_id }}</td>
+                            <td>{{ item.local_ip }}</td>
+                            <td>{{ item.timestamp }}</td>
+                            <td>{{ item.public_ip }}</td>
+                            <td>{{ item.get_time }}</td>
+                            <td>
+                                <span class="status-badge {% if item.status_boolean %}status-active{% else %}status-inactive{% endif %}">
+                                    {{ item.status }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="status-badge {% if item.frp_status_data %}status-active{% else %}status-inactive{% endif %}">
+                                    {{ item.frp_status }}
+                                </span>
+                            </td>
+
+                            <td>
+                                {% if item.status_boolean %}
+                                    <!-- 在线状态：按钮可用 -->
+                                    <button class="action-btn action-btn-outline" 
+                                            onclick="refreshIp('{{ item.device_id }}')">
+                                        刷新 IP
+                                    </button>
+                                    <button class="frp-toggle {% if item.frp_status_data %}frp-off{% else %}frp-on{% endif %}"
+                                            onclick="toggleFrp('{{ item.device_id }}', {% if item.frp_status_data %}true{% else %}false{% endif %})">
+                                        {% if item.frp_status_data %}FRP 停止{% else %}FRP 开启{% endif %}
+                                    </button>
+                                {% else %}
+                                    <!-- 离线状态：按钮禁用 -->
+                                    <span class="tooltip">
+                                        <button class="action-btn action-btn-disabled" disabled>刷新 IP</button>
+                                        <span class="tooltip-text">设备离线，无法操作</span>
+                                    </span>
+                                    <span class="tooltip">
+                                        <button class="frp-toggle frp-disabled" disabled>
+                                            {% if item.frp_status_data %}FRP 停止{% else %}FRP 开启{% endif %}
+                                        </button>
+                                        <span class="tooltip-text">设备离线，无法操作</span>
+                                    </span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="8">
+                                <div class="empty-state">
+                                    <div class="empty-state-icon">📭</div>
+                                    <div>暂无设备数据</div>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
-        <div class="log-content" id="log-content">
+
+        <!-- 操作日志 -->
+        <div class="log-section">
+            <div class="log-header">
+                <div class="log-title">操作日志</div>
+                <button class="btn btn-outline btn-small" onclick="clearLog()">清空日志</button>
+            </div>
+            <div class="log-content" id="log-content">
+                暂无操作记录...
+            </div>
         </div>
     </div>
 </body>
+
 </html>

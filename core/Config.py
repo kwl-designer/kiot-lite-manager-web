@@ -17,4 +17,13 @@ class Config:
 
     def get_broker_password(self):
         return self.config.get('broker', 'password')
+    
+    def get_login_username(self):
+        return self.config.get('login', 'username')
+
+    def get_login_password(self):
+        return self.config.get('login', 'password')
+    
+    def get_login_secret_key(self):
+        return self.config.get('login', 'secret_key')
 

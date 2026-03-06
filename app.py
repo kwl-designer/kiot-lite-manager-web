@@ -6,9 +6,15 @@ import time
 from core.mqtt_client import MQTTClient
 from core.Config import Config
 
+from flask import  session, redirect, url_for, make_response
+from functools import wraps
+
 app = Flask(__name__)
 
 config = Config('config.conf')
+
+app.secret_key = config.get_login_secret_key()
+
 
 # 初始化MQTT客户端
 mqtt_client = MQTTClient(broker_host=config.get_broker_host(),
@@ -17,6 +23,14 @@ mqtt_client = MQTTClient(broker_host=config.get_broker_host(),
                          password=config.get_broker_password())
 mqtt_client.connect()
 
+
+def login_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('logged_in'):
+            return redirect(url_for('login'))
+        return f(*args, **kwargs)
+    return decorated
 
 def format_time_diff(seconds):
     """将秒数转换为 x时x分x秒 格式"""
@@ -49,9 +63,11 @@ def get_redis_data():
             if time_diff > 60:
                 status = f"离线 {format_time_diff(time_diff)}"
                 status_color = "red"
+                status_boolean = False
             else:
                 status = "在线"
                 status_color = "green"
+                status_boolean = True
 
             # frp状态
             frp_status = "停止"
@@ -71,6 +87,7 @@ def get_redis_data():
                     '%Y-%m-%d %H:%M:%S'),
                 'status': status,
                 'status_color': status_color,
+                'status_boolean': status_boolean,
                 'frp_status': frp_status,
                 'frp_status_color': frp_status_color,
                 'frp_status_data': frp_status_data
@@ -81,6 +98,7 @@ def get_redis_data():
 
 
 @app.route('/')
+@login_required
 def index():
     data = get_redis_data()
     return render_template('index.html', data=data)
@@ -121,6 +139,26 @@ def frp_ctl():
         return jsonify({'success': True, 'message': f'已向设备 {device_id} 发送Frp命令'})
     else:
         return jsonify({'success': False, 'message': 'MQTT命令发送失败'})
+
+
+
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    error = None
+    if request.method == 'POST':
+        if request.form.get('username') == config.get_login_username() and \
+           request.form.get('password') == config.get_login_password():
+            session['logged_in'] = True
+            return redirect(url_for('index'))
+        else:
+            error = '用户名或密码错误'
+    return render_template('login.html', error=error)
+
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('login'))
 
 if __name__ == '__main__':
     app.run(debug=True, port=6000)
