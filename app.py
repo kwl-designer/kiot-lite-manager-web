@@ -101,7 +101,20 @@ def get_redis_data():
 @login_required
 def index():
     data = get_redis_data()
-    return render_template('index.html', data=data)
+    remoteIotBtnEnable = False
+    for item in data:
+        if item['status_boolean'] and item['frp_status_data']:
+            remoteIotBtnEnable = True
+            break
+        
+    iot_proxy_web = config.get_other_iot_proxy_web()
+    
+    cfg = {
+        'data': data,
+        'remoteIotBtnEnable': remoteIotBtnEnable,
+        'iot_proxy_web': iot_proxy_web
+    }
+    return render_template('index.html',**cfg)
 
 
 @app.route('/api/data')

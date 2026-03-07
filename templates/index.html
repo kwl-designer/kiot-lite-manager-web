@@ -108,7 +108,8 @@
             background: #ffffff;
             border-radius: 12px;
             box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
-            overflow: hidden;
+            /* overflow: hidden; */
+            /* overflow-y: visible; */
         }
 
         .card-header {
@@ -409,13 +410,23 @@
             addLog('日志已清空', 'info');
         }
 
+        function jumpToUrl(url) {
+            const link = document.createElement('a');
+            link.href = url;
+            link.target = '_blank';
+            link.click();  // 不添加到 DOM，直接触发
+            // link 对象会被垃圾回收
+        }
+
         function refreshTable() {
             addLog('正在刷新设备数据...', 'info');
+            const iot_proxy_web = '{{iot_proxy_web}}'
             fetch('/api/data')
                 .then(response => response.json())
                 .then(data => {
                     let tbody = document.getElementById('table-body');
                     tbody.innerHTML = '';
+                    let remoteIotBtnEnable = false
                     data.forEach((item, index) => {
                         let row = tbody.insertRow();
 
@@ -431,6 +442,11 @@
                         let frp_btn_text = item.frp_status_data ? 'FRP 停止' : 'FRP 开启';
                         let frp_btn_class = item.frp_status_data ? 'frp-off' : 'frp-on';
                         let frpBtnDisabled = 'green';
+
+                        //判断远程remoteIotBtn是否可用
+                        if(item.frp_status_data && item.status_boolean) {
+                            remoteIotBtnEnable = true
+                        }
 
                         let btns = '';
                         if(item.status_boolean) {
@@ -481,6 +497,27 @@
                             </td>
                         `;
                     });
+                    
+                    let remoteIotBtn = document.getElementById('remoteIotBtn');
+                    remoteIotBtn.innerHTML = '';
+                    if(remoteIotBtnEnable) {
+                        remoteIotBtn.innerHTML = `
+                        <button id="remoteIotBtn" class="btn btn-small" 
+                            onclick="jumpToUrl('${iot_proxy_web}')">
+                                        远程盒子
+                        </button>
+                        `
+                    }else {
+                        remoteIotBtn.innerHTML = `
+                        <span id="remoteIotBtn" class="tooltip">
+                            <button class="btn btn-small" disabled>
+                                        远程盒子
+                            </button>
+                            <span class="tooltip-text">需要盒子在线并且frp运行</span>
+                        </span>
+                        `
+                    }
+
                     countdown = 15; // 重置倒计时
                     addLog(`设备数据刷新成功，共 ${data.length} 台设备`, 'success');
                 })
@@ -602,7 +639,21 @@
         <div class="card">
             <div class="card-header">
                 <div class="card-title">设备列表</div>
-                <button class="btn btn-black btn-small" onclick="refreshTable()">刷新数据</button>
+                <div>
+                    {% if remoteIotBtnEnable %}
+                    <button id="remoteIotBtn" class="btn btn-small" onclick="jumpToUrl('{{ iot_proxy_web }}')">远程盒子
+                    </button>
+                    {% else %}
+                    <span id="remoteIotBtn" class="tooltip">
+                            <button class="btn btn-small" disabled>
+                                        远程盒子
+                            </button>
+                            <span class="tooltip-text">需要盒子在线并且frp运行</span>
+                    </span>
+                    {% endif %}
+                    <button class="btn btn-black btn-small" onclick="refreshTable()">刷新数据</button>
+            </div>
+                
             </div>
             <div class="table-container">
                 <table>

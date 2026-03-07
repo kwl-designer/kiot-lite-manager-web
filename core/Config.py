@@ -26,4 +26,7 @@ class Config:
     
     def get_login_secret_key(self):
         return self.config.get('login', 'secret_key')
+    
+    def get_other_iot_proxy_web(self):
+        return self.config.get('other', 'iot_proxy_web')
 
