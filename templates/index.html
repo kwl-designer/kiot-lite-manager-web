@@ -499,16 +499,15 @@
                     });
                     
                     let remoteIotBtn = document.getElementById('remoteIotBtn');
-                    remoteIotBtn.innerHTML = '';
                     if(remoteIotBtnEnable) {
-                        remoteIotBtn.innerHTML = `
+                        remoteIotBtn.outerHTML  = `
                         <button id="remoteIotBtn" class="btn btn-small" 
                             onclick="jumpToUrl('${iot_proxy_web}')">
                                         远程盒子
                         </button>
                         `
                     }else {
-                        remoteIotBtn.innerHTML = `
+                        remoteIotBtn.outerHTML  = `
                         <span id="remoteIotBtn" class="tooltip">
                             <button class="btn btn-small" disabled>
                                         远程盒子
