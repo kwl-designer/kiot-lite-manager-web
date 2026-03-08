@@ -527,7 +527,7 @@
 
         function toggleFrp(deviceId, op) {
             let optext = op === true ? "frp开启" : "frp停止"
-            addLog(`正在向设备 ${deviceId} 发送刷新${optext}命令...`, 'info');
+            addLog(`正在向设备 ${deviceId} 发送${optext}命令...`, 'info');
 
             // 发送请求到后端
             fetch('/api/frp_ctl', {
