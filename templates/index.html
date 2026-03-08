@@ -693,7 +693,7 @@
                                         刷新 IP
                                     </button>
                                     <button class="frp-toggle {% if item.frp_status_data %}frp-off{% else %}frp-on{% endif %}"
-                                            onclick="toggleFrp('{{ item.device_id }}', {% if item.frp_status_data %}true{% else %}false{% endif %})">
+                                            onclick="toggleFrp('{{ item.device_id }}', {% if item.frp_status_data %}false{% else %}true{% endif %})">
                                         {% if item.frp_status_data %}FRP 停止{% else %}FRP 开启{% endif %}
                                     </button>
                                 {% else %}
